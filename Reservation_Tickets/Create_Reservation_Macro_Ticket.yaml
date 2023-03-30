@@ -1,0 +1,51 @@
+- defaultTab: nodes
+  description: ''
+  executionEnabled: true
+  group: archer2/budget
+  loglevel: INFO
+  multipleExecutions: true
+  name: Create reservation
+  nodeFilterEditable: false
+  options:
+  - name: TID
+    regex: \d+
+    required: true
+  - name: account
+    required: true
+  - dateFormat: YYYY-MM-DDTHH:mm:ss
+    isDate: true
+    name: end_time
+    required: true
+  - enforced: true
+    name: node
+    values:
+    - A2-23CAB-UANx
+    - A2-TDS-UANx
+    valuesListDelimiter: ','
+  - name: node_count
+    regex: \d+
+    required: true
+  - dateFormat: YYYY-MM-DDTHH:mm:ss
+    isDate: true
+    name: start_time
+    required: true
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - jobref:
+        args: -safe_ticket_id ${option.TID} -start_time ${option.start_time} -end_time
+          ${option.end_time} -account ${option.account} -node_count ${option.node_count}
+          -partition standard
+        group: Slurm Tickets with Cluster Choice
+        name: Reservation create
+        nodefilters:
+          filter: ${option.node}
+        project: Slurm-Microtickets
+    - jobref:
+        args: -reservation ${option.account}_${option.TID} -TID ${option.TID}
+        group: archer2
+        name: Complete archer2 reservation ticket
+    keepgoing: false
+    strategy: node-first

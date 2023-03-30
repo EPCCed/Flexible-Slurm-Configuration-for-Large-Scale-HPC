@@ -1,0 +1,72 @@
+- defaultTab: output
+  description: Create a Slurm reservation
+  executionEnabled: true
+  group: Slurm Tickets with Cluster Choice
+  loglevel: INFO
+  name: Reservation create
+  nodeFilterEditable: false
+  nodefilters:
+    dispatch:
+      excludePrecedence: true
+      keepgoing: false
+      rankOrder: ascending
+      successOnEmptyNodeFilter: false
+      threadcount: '1'
+    filter: ' name:A2-23CAB-UANx,A2-TDS-UANx,cirrus-services1'
+  nodesSelectedByDefault: false
+  options:
+  - description: What is the SAFE ticket ID?
+    label: SAFE Ticket ID
+    name: safe_ticket_id
+  - dateFormat: YYYY-MM-DDTHH:mm:ss
+    description: When should the reservation start?
+    isDate: true
+    label: Start time
+    name: start_time
+    required: true
+  - dateFormat: YYYY-MM-DDTHH:mm:ss
+    description: When should the reservation end?
+    isDate: true
+    label: End time
+    name: end_time
+    required: true
+  - description: Slurm account for the reservation
+    label: Account
+    name: account
+    required: true
+  - description: How many nodes to reserve?
+    label: Node count
+    name: node_count
+  - description: What partition this reservation should be created for?
+    label: Partition
+    name: partition
+    required: true
+  plugins:
+    ExecutionLifecycle: null
+  scheduleEnabled: true
+  sequence:
+    commands:
+    - script: |-
+        #!/bin/bash
+
+        #Capture output of command and exit status for use in further logic
+        output=$(/usr/bin/scontrol create reservation ReservationName=@option.account@_@option.safe_ticket_id@ account=@option.account@ starttime=@option.start_time@ endtime=@option.end_time@ nodecnt=@option.node_count@ partition=@option.partition@ flags=replace_down 2>&1)
+        ret=$?
+        # We do still want the output in rundeck though
+        echo ${output}
+
+        #If we got a non-zero exit, we need to see if we care
+        if [ $ret -ne 0 ]; then
+            if [[ ${output} == *"Error creating the reservation: Duplicate reservation name"* ]] ; then
+                #Reservation is already created
+                exit 0
+            else
+                #Some other kind of issue - pass the return value pack to rundeck
+                exit $ret
+            fi
+        fi
+
+        # Probably redundant but just in case
+        exit 0
+    keepgoing: false
+    strategy: node-first
